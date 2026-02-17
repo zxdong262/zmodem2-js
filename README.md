@@ -294,3 +294,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Related Projects
 
 - [zmodem2-wasm](https://www.npmjs.com/package/zmodem2-wasm) - WebAssembly implementation for high-performance CRC calculations
+- [electerm](https://github.com/electerm/electerm) - Terminal app with ZMODEM support which uses this library for ZMODEM file transfers

@@ -295,3 +295,4 @@ MIT 许可证 - 详细信息见 [LICENSE](LICENSE)。
 ## 相关项目
 
 - [zmodem2-wasm](https://www.npmjs.com/package/zmodem2-wasm) - 使用 WebAssembly 提供高性能 CRC 计算的实现
+- [electerm](https://github.com/electerm/electerm) - 支持 ZMODEM 的终端应用，使用本库进行 ZMODEM 文件传输
