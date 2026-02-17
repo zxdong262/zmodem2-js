@@ -1,0 +1,119 @@
+{
+  "name": "zmodem2",
+  "version": "1.0.0",
+  "description": "ZMODEM file transfer protocol library for JavaScript/TypeScript",
+  "keywords": [
+    "zmodem",
+    "file transfer",
+    "protocol",
+    "serial",
+    "ssh",
+    "terminal"
+  ],
+  "homepage": "https://github.com/zxdong262/zmodem2-js#readme",
+  "bugs": {
+    "url": "https://github.com/zxdong262/zmodem2-js/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zxdong262/zmodem2-js.git"
+  },
+  "license": "MIT",
+  "author": "ZHAO Xudong <zxdong@gmail.com>",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.cjs"
+      }
+    },
+    "./cjs-full": {
+      "require": {
+        "types": "./dist/cjs-full/index.d.ts",
+        "default": "./dist/cjs-full/index.cjs"
+      }
+    },
+    "./browser": {
+      "types": "./dist/browser/index.d.ts",
+      "default": "./dist/browser/zmodem2.js"
+    }
+  },
+  "main": "./dist/cjs/index.cjs",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "browser": "./dist/browser/zmodem2.js",
+  "files": [
+    "dist",
+    "README.md",
+    "README.cn.md",
+    "LICENSE"
+  ],
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "build": "node build/build-vite.mjs",
+    "build:esm": "vite build --config build/vite.config.esm.ts",
+    "build:cjs": "vite build --config build/vite.config.cjs.ts",
+    "build:cjs-full": "vite build --config build/vite.config.cjs-full.ts",
+    "build:browser": "vite build --config build/vite.config.browser.ts",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "test:upload": "node test/integration/ssh-upload.test.mjs",
+    "test:download": "node test/integration/ssh-download.test.mjs",
+    "test:watch": "vitest",
+    "lint": "ts-standard --project tsconfig.eslint.json && standard demo/**/*.js e2e/**/*.js scripts/**/*.mjs",
+    "lint:fix": "ts-standard --fix --project tsconfig.eslint.json && standard --fix demo/**/*.js e2e/**/*.js scripts/**/*.mjs",
+    "start": "concurrently \"npm run s\" \"npm run dev\"",
+    "dev": "vite --config build/vite.config.ts",
+    "s": "node src/server/index.mjs",
+    "bench": "node benchmarks/benchmark.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/ssh2": "^1.15.5",
+    "@types/ws": "^8.5.10",
+    "@vitejs/plugin-react": "^4.2.0",
+    "@xterm/addon-web-links": "^0.11.0",
+    "@xterm/xterm": "^5.5.0",
+    "ajv": "^8.18.0",
+    "concurrently": "^9.2.1",
+    "esbuild": "^0.19.12",
+    "express": "^5.2.1",
+    "express-ws": "^5.0.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "ssh2": "^1.15.0",
+    "standard": "^17.1.0",
+    "ts-standard": "^12.0.2",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vite-plugin-dts": "^4.5.4",
+    "vitest": "^1.0.0",
+    "ws": "^8.14.2",
+    "xterm": "^5.3.0",
+    "xterm-addon-fit": "^0.8.0",
+    "zmodem2-wasm": "^1.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "standard": {
+    "env": [
+      "browser"
+    ],
+    "globals": [
+      "WebSocket",
+      "FileReader",
+      "atob",
+      "btoa"
+    ]
+  }
+}
