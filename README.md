@@ -291,20 +291,6 @@ npm run test:watch
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## Contributing
-
-Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
-
 ## Related Projects
 
 - [zmodem2-wasm](https://www.npmjs.com/package/zmodem2-wasm) - WebAssembly implementation for high-performance CRC calculations
-
-## Author
-
-ZHAO Xudong <zxdong@gmail.com>
-
-## Links
-
-- [GitHub Repository](https://github.com/zxdong262/zmodem2-js)
-- [NPM Package](https://www.npmjs.com/package/zmodem2)
-- [Issue Tracker](https://github.com/zxdong262/zmodem2-js/issues)
