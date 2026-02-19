@@ -1,4 +1,41 @@
 {
-  "extends": "./tsconfig.json",
-  "include": ["src/**/*", "test/**/*", "demo/**/*.ts", "e2e/**/*.ts", "scripts/**/*", "*.ts"]
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "types": ["node"],
+    "jsx": "react-jsx"
+  },
+  "files": [
+    "src/lib/constants.ts",
+    "src/lib/crc.ts",
+    "src/lib/error.ts",
+    "src/lib/header.ts",
+    "src/lib/index.ts",
+    "src/lib/transmission.ts",
+    "src/lib/zdle.ts",
+    "src/client/App.tsx",
+    "src/client/main.tsx",
+    "src/client/zmodem/addon.ts",
+    "test/unit/crc.test.ts",
+    "test/unit/header.test.ts",
+    "test/unit/transmission.test.ts",
+    "build/vite.config.ts",
+    "build/vite.config.browser.ts",
+    "build/vite.config.cjs.ts",
+    "build/vite.config.cjs-full.ts",
+    "build/vite.config.esm.ts",
+    "vitest.config.ts"
+  ],
+  "exclude": ["node_modules", "dist", "temp"]
 }

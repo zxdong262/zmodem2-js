@@ -69,9 +69,9 @@ const App: React.FC = () => {
       socket: websocket,
       term,
       onDetect: (type) => {
-          if (type === 'send') {
-              handleSendFile(addon)
-          }
+        if (type === 'send') {
+          void handleSendFile(addon)
+        }
       }
     })
 
@@ -81,36 +81,36 @@ const App: React.FC = () => {
     }
   }, [])
 
-  const handleSendFile = async (addon: AddonZmodemWasm) => {
-      try {
-          // Use modern File System Access API if available
-          if ('showOpenFilePicker' in window) {
-              const picks = await (window as any).showOpenFilePicker()
-              if (picks && picks.length > 0) {
-                  const file = await picks[0].getFile()
-                  addon.sendFile(file)
-              } else {
-                  // User cancelled
-              }
-          } else {
-              // Fallback to hidden input
-              const input = document.createElement('input')
-              input.type = 'file'
-              input.style.display = 'none'
-              input.onchange = (e) => {
-                  const files = (e.target as HTMLInputElement).files
-                  if (files && files.length > 0) {
-                      addon.sendFile(files[0])
-                  }
-              }
-              document.body.appendChild(input)
-              input.click()
-              document.body.removeChild(input)
+  const handleSendFile = async (addon: AddonZmodemWasm): Promise<void> => {
+    try {
+      // Use modern File System Access API if available
+      if ('showOpenFilePicker' in window) {
+        const picks = await (window as any).showOpenFilePicker()
+        if (picks !== null && picks !== undefined && picks.length > 0) {
+          const file = await picks[0].getFile()
+          void addon.sendFile(file)
+        } else {
+          // User cancelled
+        }
+      } else {
+        // Fallback to hidden input
+        const input = document.createElement('input')
+        input.type = 'file'
+        input.style.display = 'none'
+        input.onchange = (e) => {
+          const files = (e.target as HTMLInputElement).files
+          if ((files != null) && files.length > 0) {
+            void addon.sendFile(files[0])
           }
-      } catch (e) {
-          console.error('File selection failed', e)
-          terminal.current?.writeln('\r\nFile selection cancelled or failed.')
+        }
+        document.body.appendChild(input)
+        input.click()
+        document.body.removeChild(input)
       }
+    } catch (e) {
+      console.error('File selection failed', e)
+      terminal.current?.writeln('\r\nFile selection cancelled or failed.')
+    }
   }
 
   return (

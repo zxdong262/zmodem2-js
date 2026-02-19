@@ -1,12 +1,12 @@
 /**
  * Unified build script for zmodem2-js using Vite
- * 
+ *
  * This script runs all Vite builds in sequence:
  * 1. ESM build (tree-shakeable)
  * 2. CJS build (CommonJS modules)
  * 3. CJS-full build (bundled CommonJS)
  * 4. Browser build (IIFE format)
- * 
+ *
  * Also creates necessary package.json files for each output.
  */
 
@@ -58,25 +58,25 @@ function runViteBuild (configPath, label) {
  */
 function createPackageJsonFiles () {
   console.log('📝 Creating package.json files...')
-  
+
   // ESM package.json
   writeFileSync(
     join(distDir, 'esm', 'package.json'),
     JSON.stringify({ type: 'module' }, null, 2)
   )
-  
+
   // CJS package.json
   writeFileSync(
     join(distDir, 'cjs', 'package.json'),
     JSON.stringify({ type: 'commonjs' }, null, 2)
   )
-  
+
   // CJS-full package.json
   writeFileSync(
     join(distDir, 'cjs-full', 'package.json'),
     JSON.stringify({ type: 'commonjs' }, null, 2)
   )
-  
+
   console.log('   ✓ Package.json files created\n')
 }
 
@@ -85,15 +85,15 @@ function createPackageJsonFiles () {
  */
 function copyDeclarationFiles () {
   console.log('📋 Copying declaration files to dist root...')
-  
+
   const esmDir = join(distDir, 'esm')
-  
+
   function copyDtsFiles (srcDir, destDir) {
     const entries = readdirSync(srcDir, { withFileTypes: true })
     for (const entry of entries) {
       const srcPath = join(srcDir, entry.name)
       const destPath = join(destDir, entry.name)
-      
+
       if (entry.isDirectory()) {
         if (!existsSync(destPath)) {
           mkdirSync(destPath, { recursive: true })
@@ -108,7 +108,7 @@ function copyDeclarationFiles () {
       }
     }
   }
-  
+
   copyDtsFiles(esmDir, distDir)
   console.log('   ✓ Declaration files copied\n')
 }
@@ -133,22 +133,22 @@ function buildMinifiedBrowser () {
 // Run the build
 try {
   cleanDist()
-  
+
   // Run all Vite builds
   runViteBuild('build/vite.config.esm.ts', 'ESM')
   runViteBuild('build/vite.config.cjs.ts', 'CJS')
   runViteBuild('build/vite.config.cjs-full.ts', 'CJS-full')
   runViteBuild('build/vite.config.browser.ts', 'Browser')
-  
+
   // Build minified browser version
   buildMinifiedBrowser()
-  
+
   // Create package.json files
   createPackageJsonFiles()
-  
+
   // Copy declaration files to dist root
   copyDeclarationFiles()
-  
+
   console.log('✅ Build complete!')
   console.log('\nOutput directories:')
   console.log('  - dist/esm       : ES modules (tree-shakeable)')

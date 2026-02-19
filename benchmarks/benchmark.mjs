@@ -30,7 +30,7 @@ function runBenchmarks () {
 
   // --- CRC Benchmark ---
   console.log('\n--- CRC-32 Calculation Benchmark ---')
-  
+
   // JS CRC-32
   console.log('Running JS CRC-32 benchmark...')
   let startJs = performance.now()
@@ -136,7 +136,7 @@ function runBenchmarks () {
   const protocolData = []
   const genSender = new SenderJs()
   genSender.startFile(fileName, fileSize)
-  
+
   let genOffset = 0
   while (genOffset < fileSize) {
     const req = genSender.pollFile()
@@ -160,23 +160,22 @@ function runBenchmarks () {
   try {
     startJs = performance.now()
     const receiverJs = new ReceiverJs()
-    
+
     let jsBytesReceived = 0
     for (const chunk of protocolData) {
       receiverJs.feedIncoming(chunk)
-      
+
       // Drain outgoing (ACKs, etc.)
-      const outgoing = receiverJs.drainOutgoing()
-      
+      receiverJs.drainOutgoing()
+
       // Drain file data
       const fileChunk = receiverJs.drainFile()
       if (fileChunk && fileChunk.length > 0) {
         jsBytesReceived += fileChunk.length
       }
-      
+
       // Process events
-      let event
-      while ((event = receiverJs.pollEvent()) !== null) {
+      while (receiverJs.pollEvent() !== null) {
         // Handle events
       }
     }
@@ -196,23 +195,22 @@ function runBenchmarks () {
   try {
     const startWasm = performance.now()
     const receiverWasm = new WasmReceiver()
-    
+
     let wasmBytesReceived = 0
     for (const chunk of protocolData) {
       receiverWasm.feed(chunk)
-      
+
       // Drain outgoing (ACKs, etc.)
-      const outgoing = receiverWasm.drain_outgoing()
-      
+      receiverWasm.drain_outgoing()
+
       // Drain file data
       const fileChunk = receiverWasm.drain_file()
       if (fileChunk && fileChunk.length > 0) {
         wasmBytesReceived += fileChunk.length
       }
-      
+
       // Process events
-      let event
-      while ((event = receiverWasm.poll()) !== null) {
+      while (receiverWasm.poll() !== null) {
         // Handle events
       }
     }
@@ -230,34 +228,34 @@ function runBenchmarks () {
   // --- Generate Report ---
   const report = generateReport(results, fileSize)
   console.log('\n' + report)
-  
+
   writeFileSync('benchmark-report.md', report)
   console.log('\nBenchmark report saved to benchmark-report.md')
 }
 
 function generateReport (results, fileSize) {
   const lines = []
-  
+
   lines.push('# ZMODEM2-JS vs ZMODEM2-WASM Performance Benchmark Report')
   lines.push('')
   lines.push(`**Date:** ${new Date().toISOString()}`)
   lines.push(`**File Size:** ${fileSize / 1024 / 1024} MB`)
   lines.push('')
-  
+
   lines.push('## Summary')
   lines.push('')
   lines.push('| Test | JS (ms) | WASM (ms) | Winner | Speedup |')
   lines.push('|------|---------|-----------|--------|---------|')
-  
+
   // CRC row
   if (results.crc.js > 0) {
     const crcWinner = results.crc.wasm > 0 && results.crc.wasm < results.crc.js ? 'WASM' : 'JS'
-    const crcSpeedup = results.crc.wasm > 0 
+    const crcSpeedup = results.crc.wasm > 0
       ? Math.max(results.crc.js / results.crc.wasm, results.crc.wasm / results.crc.js).toFixed(2) + 'x'
       : 'N/A'
     lines.push(`| CRC-32 | ${results.crc.js.toFixed(2)} | ${results.crc.wasm > 0 ? results.crc.wasm.toFixed(2) : 'N/A'} | ${crcWinner} | ${crcSpeedup} |`)
   }
-  
+
   // Sender row
   if (results.sender.js > 0 || results.sender.wasm > 0) {
     const senderWinner = results.sender.wasm > 0 && results.sender.wasm < results.sender.js ? 'WASM' : 'JS'
@@ -266,7 +264,7 @@ function generateReport (results, fileSize) {
       : 'N/A'
     lines.push(`| Sender | ${results.sender.js > 0 ? results.sender.js.toFixed(2) : 'Failed'} | ${results.sender.wasm > 0 ? results.sender.wasm.toFixed(2) : 'Failed'} | ${senderWinner} | ${senderSpeedup} |`)
   }
-  
+
   // Receiver row
   if (results.receiver.js > 0 || results.receiver.wasm > 0) {
     const receiverWinner = results.receiver.wasm > 0 && results.receiver.wasm < results.receiver.js ? 'WASM' : 'JS'
@@ -275,7 +273,7 @@ function generateReport (results, fileSize) {
       : 'N/A'
     lines.push(`| Receiver | ${results.receiver.js > 0 ? results.receiver.js.toFixed(2) : 'Failed'} | ${results.receiver.wasm > 0 ? results.receiver.wasm.toFixed(2) : 'Failed'} | ${receiverWinner} | ${receiverSpeedup} |`)
   }
-  
+
   lines.push('')
   lines.push('## Analysis')
   lines.push('')
@@ -318,7 +316,7 @@ function generateReport (results, fileSize) {
   lines.push(`- Node.js: ${process.version}`)
   lines.push(`- Platform: ${process.platform} ${process.arch}`)
   lines.push('')
-  
+
   return lines.join('\n')
 }
 

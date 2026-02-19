@@ -13,7 +13,8 @@
     "sourceMap": true,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
-    "types": ["node"]
+    "types": ["node"],
+    "jsx": "react-jsx"
   },
   "include": ["src/**/*", "test/**/*", "demo/**/*.ts", "e2e/**/*.ts", "scripts/**/*", "*.ts"],
   "exclude": ["node_modules", "dist", "temp"],

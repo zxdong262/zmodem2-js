@@ -200,7 +200,7 @@ export class Sender {
   private readonly headerReader: HeaderReader = new HeaderReader()
   private pendingEvent: SenderEvent | null = null
   private finishRequested: boolean = false
-  private initiator: boolean = true
+  readonly initiator: boolean = true
 
   /**
    * Creates a new sender instance.
@@ -906,7 +906,7 @@ export class Receiver {
     }
   }
 
-   private processSubpacket (input: Uint8Array, startOffset: number): { consumed: number, done: boolean } {
+  private processSubpacket (input: Uint8Array, startOffset: number): { consumed: number, done: boolean } {
     let consumed = startOffset
 
     while (consumed < input.length) {
@@ -967,7 +967,7 @@ export class Receiver {
             const expected = this.crc32.finalize() >>> 0 // Ensure unsigned
             // Little-endian interpretation (as per ZMODEM spec)
             const received = (this.crcBuf[0] | (this.crcBuf[1] << 8) | (this.crcBuf[2] << 16) | (this.crcBuf[3] << 24)) >>> 0
-            
+
             if (expected !== received) {
               throw new UnexpectedCrc32Error()
             }

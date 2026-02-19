@@ -348,7 +348,7 @@ export class ZmodemSession {
       console.log('[ZMODEM] Sender event:', event)
       didWork = true
       switch (event) {
-        case SenderEvent.FileComplete:
+        case SenderEvent.FileComplete: {
           console.log('[ZMODEM] Sender file complete:', this.currentFileName)
           if (this.options.onFileComplete !== null) {
             this.options.onFileComplete(this.currentFileName)
@@ -364,6 +364,7 @@ export class ZmodemSession {
             this.sender.advanceOutgoing(finishOutgoing.length)
           }
           break
+        }
 
         case SenderEvent.SessionComplete:
           console.log('[ZMODEM] Send session complete')

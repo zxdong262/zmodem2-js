@@ -2,6 +2,24 @@
   "name": "zmodem2",
   "version": "1.0.1",
   "description": "ZMODEM file transfer protocol library for JavaScript/TypeScript",
+    "scripts": {
+    "build": "node build/build-vite.mjs",
+    "build:esm": "vite build --config build/vite.config.esm.ts",
+    "build:cjs": "vite build --config build/vite.config.cjs.ts",
+    "build:cjs-full": "vite build --config build/vite.config.cjs-full.ts",
+    "build:browser": "vite build --config build/vite.config.browser.ts",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "test:upload": "node test/integration/ssh-upload.test.mjs",
+    "test:download": "node test/integration/ssh-download.test.mjs",
+    "test:watch": "vitest",
+    "lint": "ts-standard --project tsconfig.eslint.json src/**/*.ts src/**/*.tsx test/**/*.ts && standard build/*.mjs src/server/*.mjs benchmarks/*.mjs test/integration/*.mjs",
+    "fix": "ts-standard --fix --project tsconfig.eslint.json src/**/*.ts src/**/*.tsx test/**/*.ts && standard --fix build/*.mjs src/server/*.mjs benchmarks/*.mjs test/integration/*.mjs",
+    "start": "concurrently \"npm run s\" \"npm run dev\"",
+    "dev": "vite --config build/vite.config.ts",
+    "s": "node src/server/index.mjs",
+    "bench": "node benchmarks/benchmark.mjs"
+  },
   "keywords": [
     "zmodem",
     "file transfer",
@@ -55,24 +73,6 @@
   ],
   "directories": {
     "test": "test"
-  },
-  "scripts": {
-    "build": "node build/build-vite.mjs",
-    "build:esm": "vite build --config build/vite.config.esm.ts",
-    "build:cjs": "vite build --config build/vite.config.cjs.ts",
-    "build:cjs-full": "vite build --config build/vite.config.cjs-full.ts",
-    "build:browser": "vite build --config build/vite.config.browser.ts",
-    "prepublishOnly": "npm run build",
-    "test": "vitest run",
-    "test:upload": "node test/integration/ssh-upload.test.mjs",
-    "test:download": "node test/integration/ssh-download.test.mjs",
-    "test:watch": "vitest",
-    "lint": "ts-standard --project tsconfig.eslint.json && standard demo/**/*.js e2e/**/*.js scripts/**/*.mjs",
-    "lint:fix": "ts-standard --fix --project tsconfig.eslint.json && standard --fix demo/**/*.js e2e/**/*.js scripts/**/*.mjs",
-    "start": "concurrently \"npm run s\" \"npm run dev\"",
-    "dev": "vite --config build/vite.config.ts",
-    "s": "node src/server/index.mjs",
-    "bench": "node benchmarks/benchmark.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",

@@ -8,18 +8,18 @@ const LOG_SERVER_URL = 'ws://localhost:8081'
 // Log batching to prevent flooding
 class LogSender {
   private ws: WebSocket | null = null
-  private queue: Array<{ level: string, message: string }> = []
+  private readonly queue: Array<{ level: string, message: string }> = []
   private flushTimer: ReturnType<typeof setInterval> | null = null
   private readonly FLUSH_INTERVAL = 100 // ms
   private readonly MAX_QUEUE_SIZE = 50
   private connecting = false
 
-  constructor() {
+  constructor () {
     this.connect()
   }
 
-  private connect() {
-    if (this.connecting || (this.ws && this.ws.readyState === WebSocket.OPEN)) {
+  private connect (): void {
+    if (this.connecting || ((this.ws != null) && this.ws.readyState === WebSocket.OPEN)) {
       return
     }
     this.connecting = true
@@ -43,13 +43,13 @@ class LogSender {
     }
   }
 
-  enqueue(level: string, message: string) {
+  enqueue (level: string, message: string): void {
     this.queue.push({ level, message })
-    
+
     // Flush if queue is getting too large
     if (this.queue.length >= this.MAX_QUEUE_SIZE) {
       this.flush()
-    } else if (!this.flushTimer) {
+    } else if (this.flushTimer == null) {
       // Schedule a flush
       this.flushTimer = setTimeout(() => {
         this.flushTimer = null
@@ -58,9 +58,9 @@ class LogSender {
     }
   }
 
-  private flush() {
+  private flush (): void {
     if (this.queue.length === 0) return
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    if ((this.ws == null) || this.ws.readyState !== WebSocket.OPEN) {
       this.connect()
       return
     }
@@ -86,7 +86,7 @@ const originalConsole = {
   debug: console.debug
 }
 
-function sendLogToServer(level: string, ...args: any[]) {
+function sendLogToServer (level: string, ...args: any[]): void {
   try {
     const message = args.map(a => {
       if (typeof a === 'object') {
@@ -98,7 +98,7 @@ function sendLogToServer(level: string, ...args: any[]) {
       }
       return String(a)
     }).join(' ')
-    
+
     logSender.enqueue(level, message)
   } catch {
     // Ignore all errors
@@ -137,10 +137,14 @@ window.addEventListener('error', (event) => {
 })
 
 window.addEventListener('unhandledrejection', (event) => {
-  sendLogToServer('ERROR', `Unhandled promise rejection: ${event.reason}`)
+  const reason = event.reason
+  sendLogToServer('ERROR', `Unhandled promise rejection: ${String(reason)}`)
 })
 
 console.log('Web client starting...')
 
-const root = ReactDOM.createRoot(document.getElementById('root')!)
-root.render(<App />)
+const rootElement = document.getElementById('root')
+if (rootElement !== null) {
+  const root = ReactDOM.createRoot(rootElement)
+  root.render(<App />)
+}

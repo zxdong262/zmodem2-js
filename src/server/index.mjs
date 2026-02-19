@@ -1,7 +1,6 @@
 import express from 'express'
 import expressWs from 'express-ws'
 import { Client } from 'ssh2'
-import WebSocket from 'ws'
 import fs from 'fs'
 import path from 'path'
 import cors from 'cors'
@@ -39,7 +38,7 @@ fs.writeFileSync(SERVER_LOG_FILE, `=== Server started at ${new Date().toISOStrin
 fs.writeFileSync(WEB_LOG_FILE, `=== Server started at ${new Date().toISOString()} ===\n`)
 
 // Log to server log file
-function logToServer(message, level = 'INFO') {
+function logToServer (message, level = 'INFO') {
   const timestamp = new Date().toISOString()
   const logLine = `[${timestamp}] [${level}] ${message}\n`
   fs.appendFileSync(SERVER_LOG_FILE, logLine)
@@ -47,7 +46,7 @@ function logToServer(message, level = 'INFO') {
 }
 
 // Log to web log file (for client logs)
-function logToWeb(message, level = 'INFO') {
+function logToWeb (message, level = 'INFO') {
   const timestamp = new Date().toISOString()
   const logLine = `[${timestamp}] [${level}] ${message}\n`
   fs.appendFileSync(WEB_LOG_FILE, logLine)
@@ -56,11 +55,11 @@ function logToWeb(message, level = 'INFO') {
 // WebSocket endpoint for web client logs (batched)
 app.ws('/log-ws', (ws, req) => {
   logToServer('Log WebSocket connected')
-  
+
   ws.on('message', (data) => {
     try {
       const parsed = JSON.parse(data.toString())
-      
+
       if (parsed.type === 'log-batch' && Array.isArray(parsed.logs)) {
         // Process batch of logs
         for (const log of parsed.logs) {
@@ -79,11 +78,11 @@ app.ws('/log-ws', (ws, req) => {
       logToServer(`Log WebSocket parse error: ${err.message}`, 'ERROR')
     }
   })
-  
+
   ws.on('close', () => {
     logToServer('Log WebSocket disconnected')
   })
-  
+
   ws.on('error', (err) => {
     logToServer(`Log WebSocket error: ${err.message}`, 'ERROR')
   })

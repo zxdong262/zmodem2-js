@@ -7,37 +7,8 @@
 
 import { Client } from 'ssh2'
 import { existsSync, mkdirSync } from 'fs'
-import { join, extname, basename } from 'path'
 import { Receiver } from '../../dist/esm/index.js'
 import { ZmodemSession } from './zmodem-session.mjs'
-
-/**
- * Generate a unique filename if file already exists.
- * Adds .1, .2, .3 etc. suffix before the extension.
- * @param {string} dir - Directory path
- * @param {string} fileName - Original file name
- * @returns {string} - Unique file path
- */
-function getUniqueFilePath (dir, fileName) {
-  let filePath = join(dir, fileName)
-
-  if (!existsSync(filePath)) {
-    return filePath
-  }
-
-  // File exists, need to rename
-  const ext = extname(fileName)
-  const baseName = basename(fileName, ext)
-  let counter = 1
-
-  while (existsSync(filePath)) {
-    const newFileName = `${baseName}.${counter}${ext}`
-    filePath = join(dir, newFileName)
-    counter++
-  }
-
-  return filePath
-}
 
 /**
  * Start download session after ZRQINIT detection.
