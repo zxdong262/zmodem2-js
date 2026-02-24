@@ -32,7 +32,6 @@
     "test/unit/transmission.test.ts",
     "build/vite.config.ts",
     "build/vite.config.browser.ts",
-    "build/vite.config.cjs.ts",
     "build/vite.config.cjs-full.ts",
     "build/vite.config.esm.ts",
     "vitest.config.ts"

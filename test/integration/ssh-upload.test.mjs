@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs'
 import { basename } from 'path'
 import { Sender } from '../../dist/esm/index.js'
 import { ZmodemSession } from './zmodem-session.mjs'
+import { getSSHConfig, displayTransferPerformance } from './common.mjs'
 
 /**
  * Start upload session after ZRINIT detection.
@@ -25,6 +26,8 @@ function startUploadSession (session, fileName, fileSize, fileData) {
   session.currentFileSize = fileSize
   session.bytesTransferred = 0
   session.fileBuffer = fileData
+  uploadStartTime = Date.now()
+  totalBytesTransferred = 0
 
   // Create sender as non-initiator (false) since remote sent ZRINIT first
   session.sender = new Sender(false)
@@ -38,17 +41,14 @@ function startUploadSession (session, fileName, fileSize, fileData) {
 }
 
 // SSH connection configuration
-const SSH_CONFIG = {
-  host: 'localhost',
-  port: 23355,
-  username: 'zxd',
-  password: 'zxd',
-  readyTimeout: 30000
-}
+const SSH_CONFIG = getSSHConfig()
 
-// File paths
 const UPLOAD_FILE_PATH = '/Users/zxd/dev/zmodem2-js/test/testfile_5m.bin'
 const TEST_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+
+let uploadStartTime = null
+let uploadEndTime = null
+let totalBytesTransferred = 0
 
 /**
  * Generate test file with specified size.
@@ -134,7 +134,18 @@ async function runTest () {
         }
 
         console.log('[SSH] Shell created')
-        const session = new ZmodemSession(stream, {})
+        const session = new ZmodemSession(stream, {
+          onProgress: (transferred, total, percent) => {
+            totalBytesTransferred = transferred
+            console.log(`[CALLBACK] Progress: ${transferred}/${total} (${percent}%)`)
+          },
+          onFileComplete: (fileName) => {
+            console.log('[CALLBACK] File complete:', fileName)
+          },
+          onSessionComplete: () => {
+            console.log('[CALLBACK] Session complete')
+          }
+        })
         let testComplete = false
 
         stream.on('data', (data) => {
@@ -210,6 +221,7 @@ async function runTest () {
             try {
               await waitForComplete(session, 180000)
               console.log('[TEST] Upload session complete')
+              uploadEndTime = Date.now()
             } catch (e) {
               console.log('[TEST] Upload timeout or error:', e.message)
             }
@@ -217,6 +229,9 @@ async function runTest () {
             // Wait for any remaining processing
             await new Promise((_resolve) => setTimeout(_resolve, 1000))
             console.log('[TEST] Upload test complete, state:', session.state)
+
+            // Calculate and display transfer speed
+            displayTransferPerformance(uploadStartTime, uploadEndTime, totalBytesTransferred)
 
             testComplete = true
             stream.write('exit\n')

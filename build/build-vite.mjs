@@ -3,15 +3,14 @@
  *
  * This script runs all Vite builds in sequence:
  * 1. ESM build (tree-shakeable)
- * 2. CJS build (CommonJS modules)
- * 3. CJS-full build (bundled CommonJS)
- * 4. Browser build (IIFE format)
+ * 2. CJS-full build (bundled CommonJS)
+ * 3. Browser build (IIFE format)
  *
  * Also creates necessary package.json files for each output.
  */
 
 import { execSync } from 'child_process'
-import { existsSync, mkdirSync, rmSync, writeFileSync, copyFileSync, readdirSync } from 'fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
@@ -65,12 +64,6 @@ function createPackageJsonFiles () {
     JSON.stringify({ type: 'module' }, null, 2)
   )
 
-  // CJS package.json
-  writeFileSync(
-    join(distDir, 'cjs', 'package.json'),
-    JSON.stringify({ type: 'commonjs' }, null, 2)
-  )
-
   // CJS-full package.json
   writeFileSync(
     join(distDir, 'cjs-full', 'package.json'),
@@ -78,39 +71,6 @@ function createPackageJsonFiles () {
   )
 
   console.log('   ✓ Package.json files created\n')
-}
-
-/**
- * Copy declaration files to dist root for backward compatibility
- */
-function copyDeclarationFiles () {
-  console.log('📋 Copying declaration files to dist root...')
-
-  const esmDir = join(distDir, 'esm')
-
-  function copyDtsFiles (srcDir, destDir) {
-    const entries = readdirSync(srcDir, { withFileTypes: true })
-    for (const entry of entries) {
-      const srcPath = join(srcDir, entry.name)
-      const destPath = join(destDir, entry.name)
-
-      if (entry.isDirectory()) {
-        if (!existsSync(destPath)) {
-          mkdirSync(destPath, { recursive: true })
-        }
-        copyDtsFiles(srcPath, destPath)
-      } else if (entry.name.endsWith('.d.ts')) {
-        if (!existsSync(dirname(destPath))) {
-          mkdirSync(dirname(destPath), { recursive: true })
-        }
-        copyFileSync(srcPath, destPath)
-        console.log(`   Copied: dist/${entry.name}`)
-      }
-    }
-  }
-
-  copyDtsFiles(esmDir, distDir)
-  console.log('   ✓ Declaration files copied\n')
 }
 
 /**
@@ -136,7 +96,6 @@ try {
 
   // Run all Vite builds
   runViteBuild('build/vite.config.esm.ts', 'ESM')
-  runViteBuild('build/vite.config.cjs.ts', 'CJS')
   runViteBuild('build/vite.config.cjs-full.ts', 'CJS-full')
   runViteBuild('build/vite.config.browser.ts', 'Browser')
 
@@ -146,13 +105,9 @@ try {
   // Create package.json files
   createPackageJsonFiles()
 
-  // Copy declaration files to dist root
-  copyDeclarationFiles()
-
   console.log('✅ Build complete!')
   console.log('\nOutput directories:')
   console.log('  - dist/esm       : ES modules (tree-shakeable)')
-  console.log('  - dist/cjs       : CommonJS modules')
   console.log('  - dist/cjs-full  : CommonJS bundle (all dependencies included)')
   console.log('  - dist/browser   : Browser bundle (IIFE format)')
 } catch (error) {

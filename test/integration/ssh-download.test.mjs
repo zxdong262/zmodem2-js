@@ -9,6 +9,7 @@ import { Client } from 'ssh2'
 import { existsSync, mkdirSync } from 'fs'
 import { Receiver } from '../../dist/esm/index.js'
 import { ZmodemSession } from './zmodem-session.mjs'
+import { getSSHConfig, displayTransferPerformance } from './common.mjs'
 
 /**
  * Start download session after ZRQINIT detection.
@@ -26,19 +27,15 @@ function startDownloadSession (session, initialData) {
 }
 
 // SSH connection configuration
-const SSH_CONFIG = {
-  host: 'localhost',
-  port: 23355,
-  username: 'zxd',
-  password: 'zxd',
-  readyTimeout: 30000
-}
+const SSH_CONFIG = getSSHConfig()
 
-// Download directory
 const DOWNLOAD_DIR = '/Users/zxd/dev/zmodem2-js/test/integration/downloads'
 
-// File to download from server (must exist on server)
 const DOWNLOAD_FILE_NAME = 'testfile_5m.bin'
+
+let downloadStartTime = null
+let downloadEndTime = null
+let totalBytesTransferred = 0
 
 /**
  * Wait for session to complete with timeout.
@@ -99,14 +96,18 @@ async function runTest () {
           downloadDir: DOWNLOAD_DIR,
           onFileStart: (fileName, fileSize) => {
             console.log('[CALLBACK] File start:', fileName, 'size:', fileSize)
+            downloadStartTime = Date.now()
+            totalBytesTransferred = 0
           },
           onFileComplete: (fileName) => {
             console.log('[CALLBACK] File complete:', fileName)
+            downloadEndTime = Date.now()
           },
           onSessionComplete: () => {
             console.log('[CALLBACK] Session complete')
           },
           onProgress: (transferred, total, percent) => {
+            totalBytesTransferred = transferred
             console.log(`[CALLBACK] Progress: ${transferred}/${total} (${percent}%)`)
           }
         })
@@ -179,6 +180,9 @@ async function runTest () {
             // Wait for any remaining processing
             await new Promise((_resolve) => setTimeout(_resolve, 1000))
             console.log('[TEST] Download test complete, state:', session.state)
+
+            // Calculate and display transfer speed
+            displayTransferPerformance(downloadStartTime, downloadEndTime, totalBytesTransferred)
 
             testComplete = true
             stream.write('exit\n')

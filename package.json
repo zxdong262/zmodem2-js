@@ -1,11 +1,10 @@
 {
   "name": "zmodem2",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "ZMODEM file transfer protocol library for JavaScript/TypeScript",
   "scripts": {
     "build": "node build/build-vite.mjs",
     "build:esm": "vite build --config build/vite.config.esm.ts",
-    "build:cjs": "vite build --config build/vite.config.cjs.ts",
     "build:cjs-full": "vite build --config build/vite.config.cjs-full.ts",
     "build:browser": "vite build --config build/vite.config.browser.ts",
     "prepublishOnly": "npm run build",
@@ -46,22 +45,16 @@
         "default": "./dist/esm/index.js"
       },
       "require": {
-        "types": "./dist/cjs/index.d.ts",
-        "default": "./dist/cjs/index.cjs"
-      }
-    },
-    "./cjs-full": {
-      "require": {
-        "types": "./dist/cjs-full/index.d.ts",
+        "types": "./dist/esm/index.d.ts",
         "default": "./dist/cjs-full/index.cjs"
       }
     },
     "./browser": {
-      "types": "./dist/browser/index.d.ts",
+      "types": "./dist/esm/index.d.ts",
       "default": "./dist/browser/zmodem2.js"
     }
   },
-  "main": "./dist/cjs/index.cjs",
+  "main": "./dist/cjs-full/index.cjs",
   "module": "./dist/esm/index.js",
   "types": "./dist/esm/index.d.ts",
   "browser": "./dist/browser/zmodem2.js",
