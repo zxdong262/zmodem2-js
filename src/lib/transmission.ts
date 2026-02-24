@@ -4,7 +4,7 @@
  * @module zmodem2-js/transmission
  */
 
-import { ZDLE, ZPAD, SUBPACKET_MAX_SIZE, SUBPACKET_PER_ACK } from './constants.js'
+import { ZDLE, ZPAD, SUBPACKET_MAX_SIZE, SUBPACKET_PER_ACK, WIRE_BUF_SIZE } from './constants.js'
 import { MalformedPacketError, MalformedFileNameError, MalformedFileSizeError, MalformedHeaderError, OutOfMemoryError, UnexpectedCrc16Error, UnexpectedCrc32Error, UnexpectedEofError, UnsupportedError } from './error.js'
 import { Encoding, Frame, Header, ZACK_HEADER, ZDATA_HEADER, ZEOF_HEADER, ZFIN_HEADER, ZNAK_HEADER, ZRPOS_HEADER, ZRQINIT_HEADER, decodeHeader, createZrinit, writeSliceEscaped, Zrinit } from './header.js'
 import { Crc16, Crc32 } from './crc.js'
@@ -195,7 +195,7 @@ export class Sender {
   private maxSubpacketSize: number = SUBPACKET_MAX_SIZE
   private maxSubpacketsPerAck: number = SUBPACKET_PER_ACK
   private readonly buf: Buffer = new Buffer(SUBPACKET_MAX_SIZE)
-  private readonly outgoing: Buffer = new Buffer(2048)
+  private readonly outgoing: Buffer = new Buffer(WIRE_BUF_SIZE)
   private outgoingOffset: number = 0
   private readonly headerReader: HeaderReader = new HeaderReader()
   private pendingEvent: SenderEvent | null = null
@@ -296,6 +296,8 @@ export class Sender {
     const isLastInFrame =
       this.frameRemaining <= 1 || data.length < request.len || remainingAfter === 0
     const kind = isLastInFrame ? SubpacketType.ZCRCW : SubpacketType.ZCRCG
+
+    console.log(`[Sender.feedFile] offset=${offset}, len=${data.length}, frameRemaining=${this.frameRemaining}, maxSubpacketsPerAck=${this.maxSubpacketsPerAck}, maxSubpacketSize=${this.maxSubpacketSize}, isLastInFrame=${isLastInFrame}, kind=${kind === SubpacketType.ZCRCW ? 'ZCRCW' : 'ZCRCG'}`)
 
     this.queueZdata(offset, data, kind, this.frameNeedsHeader)
     this.frameNeedsHeader = false
@@ -545,27 +547,25 @@ export class Sender {
 
   private updateReceiverCaps (header: Header): void {
     const flags = header.flags
-    const rxBufSize = flags[0] | (flags[1] << 8)
-    const caps = flags[2] | (flags[3] << 8)
+    // Caps is in flags[3], not (flags[2] | flags[3] << 8)
+    // This matches the Rust implementation
+    const caps = flags[3]
     const canOvio = (caps & Zrinit.CANOVIO) !== 0
 
-    if (rxBufSize === 0) {
-      this.maxSubpacketSize = SUBPACKET_MAX_SIZE
-      this.maxSubpacketsPerAck = canOvio ? SUBPACKET_PER_ACK : 1
-      return
-    }
+    console.log(`[Sender.updateReceiverCaps] flags=${flags.join(',')}, caps=${caps.toString(16)}, canOvio=${canOvio}`)
 
-    this.maxSubpacketSize = Math.min(SUBPACKET_MAX_SIZE, rxBufSize)
-    if (!canOvio) {
-      this.maxSubpacketsPerAck = 1
-      return
-    }
+    // Always use the maximum subpacket size for efficiency
+    this.maxSubpacketSize = SUBPACKET_MAX_SIZE
 
-    const subpackets = Math.floor(rxBufSize / this.maxSubpacketSize)
-    this.maxSubpacketsPerAck = subpackets === 0 ? 1 : subpackets
+    // Use our optimized SUBPACKET_PER_ACK if receiver supports overlapped I/O
+    // Ignore rx_buf_size limitation as it's mainly for flow control, not throughput
+    this.maxSubpacketsPerAck = canOvio ? SUBPACKET_PER_ACK : 1
+
+    console.log(`[Sender.updateReceiverCaps] maxSubpacketSize=${this.maxSubpacketSize}, maxSubpacketsPerAck=${this.maxSubpacketsPerAck}`)
   }
 
   private onZrpos (offset: number): void {
+    console.log(`[Sender.onZrpos] offset=${offset}, state=${this.state}, fileSize=${this.fileSize}`)
     switch (this.state) {
       case SendState.WaitReceiverInit:
         this.queueZrqinit()
@@ -585,6 +585,7 @@ export class Sender {
           const len = Math.min(this.maxSubpacketSize, remaining)
           this.pendingRequest = { offset, len }
           this.state = SendState.NeedFileData
+          console.log(`[Sender.onZrpos] frameRemaining=${this.frameRemaining}, len=${len}, remaining=${remaining}`)
         }
         break
     }
@@ -619,7 +620,7 @@ export class Receiver {
   private crcBuf: number[] = [] // Partial CRC bytes (persists across calls)
   private crc16: Crc16 = new Crc16()
   private crc32: Crc32 = new Crc32()
-  private readonly outgoing: Buffer = new Buffer(2048)
+  private readonly outgoing: Buffer = new Buffer(WIRE_BUF_SIZE)
   private outgoingOffset: number = 0
   private pendingEvents: Array<ReceiverEvent | null> = [null, null, null, null]
   private pendingEventHead: number = 0
@@ -804,7 +805,8 @@ export class Receiver {
   }
 
   private queueZrinit (): void {
-    const header = createZrinit(SUBPACKET_MAX_SIZE, Zrinit.CANFDX | Zrinit.CANFC32).encode()
+    // Include CANOVIO flag to enable overlapped I/O for better throughput
+    const header = createZrinit(SUBPACKET_MAX_SIZE, Zrinit.CANFDX | Zrinit.CANOVIO | Zrinit.CANFC32).encode()
     this.outgoing.clear()
     this.outgoing.extend(header)
     this.outgoingOffset = 0

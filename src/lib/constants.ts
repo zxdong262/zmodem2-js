@@ -20,14 +20,18 @@ export const ZDLE = 0x18
 export const XON = 0x11
 
 /**
- * Maximum size of an unescaped subpacket payload
+ * Maximum size of an unescaped subpacket payload.
+ * Increased from 1024 to 8192 for better throughput over high-latency connections.
+ * ZMODEM spec allows up to 8KB subpackets with ZCRCW encoding.
  */
-export const SUBPACKET_MAX_SIZE = 1024
+export const SUBPACKET_MAX_SIZE = 8192
 
 /**
- * Number of subpackets per acknowledgment
+ * Number of subpackets per acknowledgment.
+ * Increased from 10 to 200 for better throughput over high-latency connections
+ * (WebSocket/SSH tunneling). This allows ~1.6MB per ACK cycle (200 * 8KB).
  */
-export const SUBPACKET_PER_ACK = 10
+export const SUBPACKET_PER_ACK = 200
 
 /**
  * Maximum size of an escaped header
