@@ -4,6 +4,9 @@ import { Client } from 'ssh2'
 import fs from 'fs'
 import path from 'path'
 import cors from 'cors'
+import dotenv from 'dotenv'
+
+dotenv.config()
 
 const app = express()
 expressWs(app)
@@ -18,10 +21,11 @@ app.use(cors({
 // Middleware to parse JSON bodies
 app.use(express.json())
 
-const SSH_HOST = 'localhost'
-const SSH_PORT = 23355
-const SSH_USER = 'zxd'
-const SSH_PASS = 'zxd'
+const SSH_HOST = process.env.TEST_HOST || 'localhost'
+const SSH_PORT = parseInt(process.env.TEST_PORT || '23355', 10)
+const SSH_USER = process.env.TEST_USER || 'zxd'
+const SSH_PASS = process.env.TEST_PASS
+const SSH_KEY_PATH = process.env.TEST_KEY_PATH
 
 // Log file setup
 const LOG_DIR = 'temp'
@@ -101,6 +105,31 @@ app.post('/log', (req, res) => {
   }
 })
 
+function getAuthConfig () {
+  if (SSH_KEY_PATH) {
+    return {
+      privateKey: fs.readFileSync(SSH_KEY_PATH).toString('utf8')
+    }
+  } else if (SSH_PASS) {
+    return {
+      password: SSH_PASS
+    }
+  } else {
+    throw new Error('Either SSH_PASS or SSH_KEY_PATH must be configured')
+  }
+}
+
+function getSshConfig () {
+  const r = {
+    host: SSH_HOST,
+    port: SSH_PORT,
+    username: SSH_USER,
+    ...getAuthConfig()
+  }
+  console.log('SSH config:', r)
+  return r
+}
+
 // Test SSH connection on startup
 logToServer('Testing SSH connection...')
 const testSsh = new Client()
@@ -111,12 +140,7 @@ testSsh.on('ready', () => {
 testSsh.on('error', (err) => {
   logToServer(`SSH test connection failed: ${err.message}`, 'ERROR')
 })
-testSsh.connect({
-  host: SSH_HOST,
-  port: SSH_PORT,
-  username: SSH_USER,
-  password: SSH_PASS
-})
+testSsh.connect(getSshConfig())
 
 app.ws('/terminal', (ws, req) => {
   const clientIp = req.connection.remoteAddress
@@ -178,12 +202,7 @@ app.ws('/terminal', (ws, req) => {
     ws.close(1011, 'SSH connection failed')
   })
 
-  ssh.connect({
-    host: SSH_HOST,
-    port: SSH_PORT,
-    username: SSH_USER,
-    password: SSH_PASS
-  })
+  ssh.connect(getSshConfig())
 
   ws.on('close', () => {
     logToServer('WebSocket closed')

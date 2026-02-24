@@ -380,7 +380,7 @@ function arraysEqual (a: Uint8Array, b: Uint8Array): boolean {
  * @param flags - The ZRINIT flags
  * @returns The ZRINIT header
  */
-export function createZrinit (bufferSize: number = 1024, flags: number = Zrinit.CANFDX | Zrinit.CANFC32): Header {
+export function createZrinit (bufferSize: number = 1024, flags: number = Zrinit.CANFDX | Zrinit.CANOVIO | Zrinit.CANFC32): Header {
   const flagBytes = new Uint8Array(4)
   flagBytes[0] = bufferSize & 0xFF
   flagBytes[1] = (bufferSize >> 8) & 0xFF

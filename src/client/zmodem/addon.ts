@@ -22,11 +22,50 @@ export default class AddonZmodemWasm {
   currentFile: { name: string, size: number, data: Uint8Array[] } | null = null
   sendingFile: File | null = null
 
+  // Progress tracking
+  transferStartTime: number = 0
+  bytesTransferred: number = 0
+  lastProgressUpdate: number = 0
+  readonly PROGRESS_UPDATE_INTERVAL = 500
+
   // Debug mode - set to true to enable verbose logging
   readonly DEBUG = false
 
   constructor () {
     void this.initWasm()
+  }
+
+  formatFileSize (bytes: number): string {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`
+  }
+
+  formatSpeed (bytesPerSecond: number): string {
+    return `${this.formatFileSize(bytesPerSecond)}/s`
+  }
+
+  updateProgress (current: number, total: number): void {
+    const now = Date.now()
+    if (now - this.lastProgressUpdate < this.PROGRESS_UPDATE_INTERVAL) {
+      return
+    }
+    this.lastProgressUpdate = now
+
+    const elapsed = (now - this.transferStartTime) / 1000
+    const percent = total > 0 ? ((current / total) * 100).toFixed(1) : '0.0'
+    const speed = elapsed > 0 ? Math.round(current / elapsed) : 0
+
+    const progressBar = this.createProgressBar(parseFloat(percent), 30)
+    this.term?.writeln(`\r\nZMODEM: Progress: [${progressBar}] ${percent}% | ${this.formatFileSize(current)}/${this.formatFileSize(total)} | ${this.formatSpeed(speed)}`)
+  }
+
+  createProgressBar (percent: number, width: number): string {
+    const filled = Math.round((percent / 100) * width)
+    const empty = width - filled
+    return '='.repeat(filled) + '-'.repeat(empty)
   }
 
   /**
@@ -176,11 +215,16 @@ export default class AddonZmodemWasm {
     this.isPickingFile = false
     this.sendingFile = file
     this.sender = new Sender()
-    this._reading = false // Reset reading state
+    this._reading = false
     this._fileBuffer = null
     this._fileBufferOffset = 0
 
+    this.transferStartTime = Date.now()
+    this.bytesTransferred = 0
+    this.lastProgressUpdate = 0
+
     this.info(`Starting Sender for ${file.name} (${file.size} bytes)`)
+    this.term?.writeln(`\r\nZMODEM: Sending ${file.name} (${this.formatFileSize(file.size)})...`)
     try {
       this.sender.startFile(file.name, file.size)
       this.pumpSender()
@@ -271,6 +315,11 @@ export default class AddonZmodemWasm {
             this.sender.feedFile(chunk)
             this.debug(`Fed ${chunk.length} bytes from buffer`)
 
+            this.bytesTransferred += chunk.length
+            if (this.sendingFile != null) {
+              this.updateProgress(this.bytesTransferred, this.sendingFile.size)
+            }
+
             // IMPORTANT: Drain outgoing data immediately after feeding
             const outgoingInner = this.sender.drainOutgoing()
             if (outgoingInner !== null && outgoingInner !== undefined && outgoingInner.length > 0) {
@@ -309,14 +358,16 @@ export default class AddonZmodemWasm {
         this.info('Sender event:', event)
 
         if (event === SenderEvent.FileComplete) {
-          this.term?.writeln('\r\nZMODEM: File sent.')
+          const elapsed = (Date.now() - this.transferStartTime) / 1000
+          const avgSpeed = elapsed > 0 ? Math.round(this.bytesTransferred / elapsed) : 0
+          this.term?.writeln(`\r\nZMODEM: File sent. Total: ${this.formatFileSize(this.bytesTransferred)} in ${elapsed.toFixed(1)}s (${this.formatSpeed(avgSpeed)})`)
           this.sender.finishSession()
         } else if (event === SenderEvent.SessionComplete) {
           this.term?.writeln('\r\nZMODEM: Session complete.')
           this.sender = null
           this.sendingFile = null
           this._fileBuffer = null
-          flushOutgoing() // Flush final packets
+          flushOutgoing()
           return true
         }
       }
@@ -359,6 +410,11 @@ export default class AddonZmodemWasm {
       this.debug(`Feeding ${chunk.length} bytes`)
       this.sender.feedFile(chunk)
 
+      this.bytesTransferred += chunk.length
+      if (this.sendingFile != null) {
+        this.updateProgress(this.bytesTransferred, this.sendingFile.size)
+      }
+
       // Unlock BEFORE pumping
       this._reading = false
 
@@ -376,6 +432,9 @@ export default class AddonZmodemWasm {
 
   startReceiver (initialData: Uint8Array): void {
     this.info('Starting Receiver...')
+    this.transferStartTime = Date.now()
+    this.bytesTransferred = 0
+    this.lastProgressUpdate = 0
     try {
       this.receiver = new Receiver()
       this.handleReceiver(initialData)
@@ -443,10 +502,12 @@ export default class AddonZmodemWasm {
         if (event === ReceiverEvent.FileStart) {
           const name = this.receiver.getFileName()
           const size = this.receiver.getFileSize()
-          this.term?.writeln(`\r\nZMODEM: Receiving ${name} (${size} bytes)...`)
+          this.term?.writeln(`\r\nZMODEM: Receiving ${name} (${this.formatFileSize(size)})...`)
           this.currentFile = { name, size, data: [] }
         } else if (event === ReceiverEvent.FileComplete) {
-          this.term?.writeln('\r\nZMODEM: File complete.')
+          const elapsed = (Date.now() - this.transferStartTime) / 1000
+          const avgSpeed = elapsed > 0 ? Math.round(this.bytesTransferred / elapsed) : 0
+          this.term?.writeln(`\r\nZMODEM: File complete. Total: ${this.formatFileSize(this.bytesTransferred)} in ${elapsed.toFixed(1)}s (${this.formatSpeed(avgSpeed)})`)
           this.saveFile()
         } else if (event === ReceiverEvent.SessionComplete) {
           this.term?.writeln('\r\nZMODEM: Session complete.')
@@ -462,6 +523,8 @@ export default class AddonZmodemWasm {
         this.debug(`Drained ${chunk.length} file bytes`)
         if (this.currentFile != null) {
           this.currentFile.data.push(chunk)
+          this.bytesTransferred += chunk.length
+          this.updateProgress(this.bytesTransferred, this.currentFile.size)
           didWork = true
         } else {
           this.error('Got file data but no currentFile!')
