@@ -21,7 +21,7 @@ export default defineConfig({
     lib: {
       entry: resolve(__dirname, '../src/lib/index.ts'),
       formats: ['es'],
-      fileName: () => 'index.js'
+      fileName: 'index'
     },
     outDir: resolve(__dirname, '../dist/esm'),
     emptyOutDir: true,
@@ -32,6 +32,7 @@ export default defineConfig({
         format: 'es',
         preserveModules: true,
         preserveModulesRoot: 'src/lib',
+        entryFileNames: '[name].js',
         exports: 'named'
       }
     }
