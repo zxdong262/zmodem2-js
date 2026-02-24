@@ -2,7 +2,7 @@
   "name": "zmodem2",
   "version": "1.0.1",
   "description": "ZMODEM file transfer protocol library for JavaScript/TypeScript",
-    "scripts": {
+  "scripts": {
     "build": "node build/build-vite.mjs",
     "build:esm": "vite build --config build/vite.config.esm.ts",
     "build:cjs": "vite build --config build/vite.config.cjs.ts",
@@ -85,6 +85,7 @@
     "@xterm/xterm": "^5.5.0",
     "ajv": "^8.18.0",
     "concurrently": "^9.2.1",
+    "cors": "^2.8.6",
     "esbuild": "^0.19.12",
     "express": "^5.2.1",
     "express-ws": "^5.0.2",
