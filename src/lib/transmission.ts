@@ -297,8 +297,6 @@ export class Sender {
       this.frameRemaining <= 1 || data.length < request.len || remainingAfter === 0
     const kind = isLastInFrame ? SubpacketType.ZCRCW : SubpacketType.ZCRCG
 
-    console.log(`[Sender.feedFile] offset=${offset}, len=${data.length}, frameRemaining=${this.frameRemaining}, maxSubpacketsPerAck=${this.maxSubpacketsPerAck}, maxSubpacketSize=${this.maxSubpacketSize}, isLastInFrame=${isLastInFrame}, kind=${kind === SubpacketType.ZCRCW ? 'ZCRCW' : 'ZCRCG'}`)
-
     this.queueZdata(offset, data, kind, this.frameNeedsHeader)
     this.frameNeedsHeader = false
 
@@ -552,20 +550,15 @@ export class Sender {
     const caps = flags[3]
     const canOvio = (caps & Zrinit.CANOVIO) !== 0
 
-    console.log(`[Sender.updateReceiverCaps] flags=${flags.join(',')}, caps=${caps.toString(16)}, canOvio=${canOvio}`)
-
     // Always use the maximum subpacket size for efficiency
     this.maxSubpacketSize = SUBPACKET_MAX_SIZE
 
     // Use our optimized SUBPACKET_PER_ACK if receiver supports overlapped I/O
     // Ignore rx_buf_size limitation as it's mainly for flow control, not throughput
     this.maxSubpacketsPerAck = canOvio ? SUBPACKET_PER_ACK : 1
-
-    console.log(`[Sender.updateReceiverCaps] maxSubpacketSize=${this.maxSubpacketSize}, maxSubpacketsPerAck=${this.maxSubpacketsPerAck}`)
   }
 
   private onZrpos (offset: number): void {
-    console.log(`[Sender.onZrpos] offset=${offset}, state=${this.state}, fileSize=${this.fileSize}`)
     switch (this.state) {
       case SendState.WaitReceiverInit:
         this.queueZrqinit()
@@ -585,7 +578,6 @@ export class Sender {
           const len = Math.min(this.maxSubpacketSize, remaining)
           this.pendingRequest = { offset, len }
           this.state = SendState.NeedFileData
-          console.log(`[Sender.onZrpos] frameRemaining=${this.frameRemaining}, len=${len}, remaining=${remaining}`)
         }
         break
     }
