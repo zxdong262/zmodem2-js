@@ -291,6 +291,65 @@ npm run test:watch
 
 MIT License - see [LICENSE](LICENSE) for details.
 
+## Demo
+
+This project includes a demo application to showcase ZMODEM file transfer functionality. The demo consists of:
+
+- **Demo Server**: A Node.js server in `src/server/index.mjs` that provides WebSocket connections for terminal emulation and ZMODEM file transfers
+- **Demo Client**: A React-based web client in `src/client/` that provides a terminal interface with ZMODEM support
+
+### Running the Demo
+
+1. **Install dependencies** (if not already installed):
+   ```bash
+   npm install
+   ```
+
+2. **Configure SSH connection**:
+   Create a `.env` file in the project root with your SSH connection details:
+   ```
+   TEST_HOST=localhost
+   TEST_PORT=22
+   TEST_USER=your-username
+   TEST_PASS=your-password
+   # Or use SSH key
+   # TEST_KEY_PATH=/path/to/your/ssh/key
+   ```
+
+3. **Start the demo**:
+   ```bash
+   npm start
+   ```
+   This will start both the demo server and the development server for the client.
+
+4. **Access the demo**:
+   Open your browser and navigate to `http://localhost:5173` to access the demo client.
+
+### Demo Features
+
+- **Terminal Emulation**: Full terminal emulation through SSH connection
+- **ZMODEM File Transfer**: Support for both sending and receiving files using ZMODEM protocol
+- **WebSocket Communication**: Real-time communication between client and server
+- **WASM Support**: Uses WebAssembly for high-performance CRC calculations
+
+### Demo Server Code
+
+The demo server code is located in `src/server/index.mjs` and provides:
+
+- WebSocket endpoint for terminal connections
+- SSH connection management
+- Logging functionality
+- CORS support for cross-origin requests
+
+### Demo Client Code
+
+The demo client code is located in `src/client/` and includes:
+
+- React-based terminal interface using xterm.js
+- ZMODEM addon for file transfer functionality
+- WebSocket client for communication with the server
+- File selection dialog for sending files
+
 ## Related Projects
 
 - [zmodem2-wasm](https://www.npmjs.com/package/zmodem2-wasm) - WebAssembly implementation for high-performance CRC calculations

@@ -292,6 +292,65 @@ npm run test:watch
 
 MIT 许可证 - 详细信息见 [LICENSE](LICENSE)。
 
+## 演示（Demo）
+
+本项目包含一个演示应用，用于展示 ZMODEM 文件传输功能。演示应用由以下部分组成：
+
+- **演示服务器**：位于 `src/server/index.mjs` 的 Node.js 服务器，提供用于终端仿真和 ZMODEM 文件传输的 WebSocket 连接
+- **演示客户端**：位于 `src/client/` 的基于 React 的 Web 客户端，提供具有 ZMODEM 支持的终端界面
+
+### 运行演示
+
+1. **安装依赖**（如果尚未安装）：
+   ```bash
+   npm install
+   ```
+
+2. **配置 SSH 连接**：
+   在项目根目录创建一个 `.env` 文件，包含您的 SSH 连接详细信息：
+   ```
+   TEST_HOST=localhost
+   TEST_PORT=22
+   TEST_USER=您的用户名
+   TEST_PASS=您的密码
+   # 或使用 SSH 密钥
+   # TEST_KEY_PATH=/path/to/your/ssh/key
+   ```
+
+3. **启动演示**：
+   ```bash
+   npm start
+   ```
+   这将同时启动演示服务器和客户端的开发服务器。
+
+4. **访问演示**：
+   打开浏览器并导航到 `http://localhost:5173` 以访问演示客户端。
+
+### 演示功能
+
+- **终端仿真**：通过 SSH 连接进行完整的终端仿真
+- **ZMODEM 文件传输**：支持使用 ZMODEM 协议发送和接收文件
+- **WebSocket 通信**：客户端和服务器之间的实时通信
+- **WASM 支持**：使用 WebAssembly 进行高性能 CRC 计算
+
+### 演示服务器代码
+
+演示服务器代码位于 `src/server/index.mjs`，提供：
+
+- 用于终端连接的 WebSocket 端点
+- SSH 连接管理
+- 日志功能
+- 跨域请求的 CORS 支持
+
+### 演示客户端代码
+
+演示客户端代码位于 `src/client/`，包括：
+
+- 使用 xterm.js 的基于 React 的终端界面
+- 用于文件传输功能的 ZMODEM 插件
+- 用于与服务器通信的 WebSocket 客户端
+- 用于发送文件的文件选择对话框
+
 ## 相关项目
 
 - [zmodem2-wasm](https://www.npmjs.com/package/zmodem2-wasm) - 使用 WebAssembly 提供高性能 CRC 计算的实现
