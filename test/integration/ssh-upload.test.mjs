@@ -6,7 +6,7 @@
  */
 
 import { Client } from 'ssh2'
-import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, unlinkSync, existsSync, statSync } from 'fs'
 import { basename } from 'path'
 import { Sender } from '../../dist/esm/index.js'
 import { ZmodemSession } from './zmodem-session.mjs'
@@ -18,9 +18,10 @@ import { getSSHConfig, displayTransferPerformance } from './common.mjs'
  * @param {string} fileName - File name
  * @param {number} fileSize - File size
  * @param {Uint8Array} fileData - File data
+ * @param {number} [mtime] - File modification time in milliseconds
  */
-function startUploadSession (session, fileName, fileSize, fileData) {
-  console.log('[ZMODEM] Starting file upload:', fileName, 'size:', fileSize)
+function startUploadSession (session, fileName, fileSize, fileData, mtime) {
+  console.log('[ZMODEM] Starting file upload:', fileName, 'size:', fileSize, 'mtime:', mtime)
   session.state = 'sending'
   session.currentFileName = fileName
   session.currentFileSize = fileSize
@@ -31,7 +32,7 @@ function startUploadSession (session, fileName, fileSize, fileData) {
 
   // Create sender as non-initiator (false) since remote sent ZRINIT first
   session.sender = new Sender(false)
-  session.sender.startFile(fileName, fileSize)
+  session.sender.startFile(fileName, fileSize, mtime)
 
   // Feed pending data (ZRINIT) to sender first
   for (const data of session.pendingData) {
@@ -172,8 +173,9 @@ async function runTest () {
               mockSelectFile().then((filePath) => {
                 const fileName = basename(filePath)
                 const fileData = readFileSync(filePath)
-                console.log('[TEST] File loaded:', fileName, 'size:', fileData.length)
-                startUploadSession(session, fileName, fileData.length, new Uint8Array(fileData))
+                const fileMtime = statSync(filePath).mtimeMs
+                console.log('[TEST] File loaded:', fileName, 'size:', fileData.length, 'mtime:', fileMtime)
+                startUploadSession(session, fileName, fileData.length, new Uint8Array(fileData), fileMtime)
               }).catch(reject)
             } else {
               // Feed data to existing session

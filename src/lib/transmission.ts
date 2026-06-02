@@ -188,6 +188,7 @@ export class Sender {
   private state: SendState = SendState.WaitReceiverInit
   private fileName: string = ''
   private fileSize: number = 0
+  private fileMtime: number = 0
   private hasFile: boolean = false
   private pendingRequest: FileRequest | null = null
   private frameRemaining: number = 0
@@ -217,8 +218,9 @@ export class Sender {
    * Starts sending a file with the provided metadata.
    * @param fileName - The name of the file
    * @param fileSize - The size of the file in bytes
+   * @param mtime - The file modification time in milliseconds (optional)
    */
-  startFile (fileName: string, fileSize: number): void {
+  startFile (fileName: string, fileSize: number, mtime?: number): void {
     if (this.state === SendState.Done || this.state === SendState.WaitFinish ||
         (this.state !== SendState.WaitReceiverInit && this.state !== SendState.ReadyForFile)) {
       throw new UnsupportedError()
@@ -226,6 +228,7 @@ export class Sender {
 
     this.fileName = fileName
     this.fileSize = fileSize
+    this.fileMtime = mtime || 0
     this.hasFile = true
     this.pendingRequest = null
     this.frameRemaining = 0
@@ -397,15 +400,24 @@ export class Sender {
     const header = new Header(Encoding.ZBIN32, Frame.ZFILE).encode()
     result.push(...header)
 
-    // Build file info
+    // Build file info - use UTF-8 encoding for filename to support non-ASCII characters
     const fileInfo: number[] = []
-    for (let i = 0; i < this.fileName.length; i++) {
-      fileInfo.push(this.fileName.charCodeAt(i))
+    const nameBytes = new TextEncoder().encode(this.fileName)
+    for (let i = 0; i < nameBytes.length; i++) {
+      fileInfo.push(nameBytes[i])
     }
     fileInfo.push(0) // null terminator
     const sizeStr = this.fileSize.toString()
     for (let i = 0; i < sizeStr.length; i++) {
       fileInfo.push(sizeStr.charCodeAt(i))
+    }
+    // Include modification time as octal Unix timestamp (space-separated per ZMODEM spec)
+    if (this.fileMtime > 0) {
+      fileInfo.push(0x20) // space
+      const mtimeStr = Math.floor(this.fileMtime / 1000).toString(8)
+      for (let i = 0; i < mtimeStr.length; i++) {
+        fileInfo.push(mtimeStr.charCodeAt(i))
+      }
     }
     fileInfo.push(0) // null terminator
 
@@ -600,6 +612,7 @@ export class Receiver {
   private count: number = 0
   private fileName: string = ''
   private fileSize: number = 0
+  private fileMtime: number = 0
   private readonly buf: Buffer = new Buffer(SUBPACKET_MAX_SIZE)
   private bufWriteOffset: number = 0
   private dataEncoding: Encoding = Encoding.ZBIN
@@ -762,6 +775,13 @@ export class Receiver {
    */
   getFileSize (): number {
     return this.fileSize
+  }
+
+  /**
+   * Returns the current file modification time in milliseconds.
+   */
+  getFileMtime (): number {
+    return this.fileMtime
   }
 
   private hasOutgoing (): boolean {
@@ -1025,7 +1045,7 @@ export class Receiver {
       throw new MalformedFileNameError()
     }
 
-    this.fileName = String.fromCharCode(...fields[0])
+    this.fileName = new TextDecoder('utf-8').decode(new Uint8Array(fields[0]))
 
     if (fields.length > 1) {
       const sizeField = fields[1]
@@ -1036,8 +1056,24 @@ export class Receiver {
       if (isNaN(this.fileSize)) {
         throw new MalformedFileSizeError()
       }
+      // Parse modification time (octal Unix timestamp) if present
+      if (spaceIndex >= 0) {
+        const restBytes = sizeField.slice(spaceIndex + 1)
+        const nextSpaceIndex = restBytes.findIndex(b => b === 0x20)
+        const mtimeBytes = nextSpaceIndex >= 0 ? restBytes.slice(0, nextSpaceIndex) : restBytes
+        if (mtimeBytes.length > 0) {
+          const mtimeStr = String.fromCharCode(...mtimeBytes)
+          const mtimeSec = parseInt(mtimeStr, 8)
+          this.fileMtime = isNaN(mtimeSec) ? 0 : mtimeSec * 1000
+        } else {
+          this.fileMtime = 0
+        }
+      } else {
+        this.fileMtime = 0
+      }
     } else {
       this.fileSize = 0
+      this.fileMtime = 0
     }
 
     this.count = 0

@@ -212,4 +212,104 @@ describe('Sender-Receiver Integration', () => {
     senderOut = sender.drainOutgoing()
     expect(senderOut.length).toBeGreaterThan(0)
   })
+
+  it('should round-trip Chinese filename through Sender and Receiver', () => {
+    const sender = new Sender()
+    const receiver = new Receiver()
+
+    // Exchange ZRQINIT / ZRINIT
+    let senderOut = sender.drainOutgoing()
+    receiver.feedIncoming(senderOut)
+    sender.advanceOutgoing(senderOut.length)
+
+    const receiverOut = receiver.drainOutgoing()
+    receiver.advanceOutgoing(receiverOut.length)
+    sender.feedIncoming(receiverOut)
+
+    // Sender starts a file with Chinese filename
+    const fileName = '中文文件名.txt'
+    const fileSize = 12345
+    sender.startFile(fileName, fileSize)
+    senderOut = sender.drainOutgoing()
+    expect(senderOut.length).toBeGreaterThan(0)
+
+    // Feed sender output into receiver
+    receiver.feedIncoming(senderOut)
+
+    // Receiver should have parsed the file metadata
+    expect(receiver.getFileName()).toBe(fileName)
+    expect(receiver.getFileSize()).toBe(fileSize)
+
+    // Receiver should emit FileStart event
+    expect(receiver.pollEvent()).toBe('FileStart')
+  })
+
+  it('should round-trip file modification time through Sender and Receiver', () => {
+    const sender = new Sender()
+    const receiver = new Receiver()
+
+    // Exchange ZRQINIT / ZRINIT
+    let senderOut = sender.drainOutgoing()
+    receiver.feedIncoming(senderOut)
+    sender.advanceOutgoing(senderOut.length)
+
+    const receiverOut = receiver.drainOutgoing()
+    receiver.advanceOutgoing(receiverOut.length)
+    sender.feedIncoming(receiverOut)
+
+    // Sender starts a file with mtime (milliseconds, as Date.getTime())
+    const fileName = 'test.txt'
+    const fileSize = 100
+    const mtime = 1700000000000 // 2023-11-14T22:13:20.000Z
+    sender.startFile(fileName, fileSize, mtime)
+    senderOut = sender.drainOutgoing()
+    expect(senderOut.length).toBeGreaterThan(0)
+
+    // Feed sender output into receiver
+    receiver.feedIncoming(senderOut)
+
+    // Receiver should have parsed the file metadata
+    expect(receiver.getFileName()).toBe(fileName)
+    expect(receiver.getFileSize()).toBe(fileSize)
+
+    // Mtime should round-trip (note: ZMODEM stores seconds, so ms precision is lost)
+    const expectedMtimeSec = Math.floor(mtime / 1000)
+    expect(receiver.getFileMtime()).toBe(expectedMtimeSec * 1000)
+
+    // Receiver should emit FileStart event
+    expect(receiver.pollEvent()).toBe('FileStart')
+  })
+
+  it('should round-trip Chinese filename with mtime together', () => {
+    const sender = new Sender()
+    const receiver = new Receiver()
+
+    // Exchange ZRQINIT / ZRINIT
+    let senderOut = sender.drainOutgoing()
+    receiver.feedIncoming(senderOut)
+    sender.advanceOutgoing(senderOut.length)
+
+    const receiverOut = receiver.drainOutgoing()
+    receiver.advanceOutgoing(receiverOut.length)
+    sender.feedIncoming(receiverOut)
+
+    // Sender starts a file with Chinese name and mtime
+    const fileName = '测试/数据报告.pdf'
+    const fileSize = 99999
+    const mtime = 1609459200000 // 2021-01-01T00:00:00.000Z
+    sender.startFile(fileName, fileSize, mtime)
+    senderOut = sender.drainOutgoing()
+    expect(senderOut.length).toBeGreaterThan(0)
+
+    // Feed sender output into receiver
+    receiver.feedIncoming(senderOut)
+
+    // Verify all metadata round-trips correctly
+    expect(receiver.getFileName()).toBe(fileName)
+    expect(receiver.getFileSize()).toBe(fileSize)
+    const expectedMtimeSec = Math.floor(mtime / 1000)
+    expect(receiver.getFileMtime()).toBe(expectedMtimeSec * 1000)
+
+    expect(receiver.pollEvent()).toBe('FileStart')
+  })
 })

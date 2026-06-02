@@ -273,11 +273,12 @@ export class ZmodemSession {
         case ReceiverEvent.FileStart:
           this.currentFileName = this.receiver.getFileName()
           this.currentFileSize = this.receiver.getFileSize()
+          this.currentMtime = this.receiver.getFileMtime()
           this.bytesTransferred = 0
           this.fileBuffer = []
-          console.log('[ZMODEM] File start:', this.currentFileName, 'size:', this.currentFileSize)
+          console.log('[ZMODEM] File start:', this.currentFileName, 'size:', this.currentFileSize, 'mtime:', this.currentMtime)
           if (this.options.onFileStart !== null) {
-            this.options.onFileStart(this.currentFileName, this.currentFileSize)
+            this.options.onFileStart(this.currentFileName, this.currentFileSize, this.currentMtime)
           }
           break
 

@@ -6,7 +6,8 @@
  */
 
 import { Client } from 'ssh2'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, statSync } from 'fs'
+import { join } from 'path'
 import { Receiver } from '../../dist/esm/index.js'
 import { ZmodemSession } from './zmodem-session.mjs'
 import { getSSHConfig, displayTransferPerformance } from './common.mjs'
@@ -36,6 +37,7 @@ const DOWNLOAD_FILE_NAME = 'testfile_5m.bin'
 let downloadStartTime = null
 let downloadEndTime = null
 let totalBytesTransferred = 0
+let receivedMtime = 0
 
 /**
  * Wait for session to complete with timeout.
@@ -94,10 +96,11 @@ async function runTest () {
         console.log('[SSH] Shell created')
         const session = new ZmodemSession(stream, {
           downloadDir: DOWNLOAD_DIR,
-          onFileStart: (fileName, fileSize) => {
-            console.log('[CALLBACK] File start:', fileName, 'size:', fileSize)
+          onFileStart: (fileName, fileSize, mtime) => {
+            console.log('[CALLBACK] File start:', fileName, 'size:', fileSize, 'mtime:', mtime)
             downloadStartTime = Date.now()
             totalBytesTransferred = 0
+            receivedMtime = mtime || 0
           },
           onFileComplete: (fileName) => {
             console.log('[CALLBACK] File complete:', fileName)
@@ -180,6 +183,17 @@ async function runTest () {
             // Wait for any remaining processing
             await new Promise((_resolve) => setTimeout(_resolve, 1000))
             console.log('[TEST] Download test complete, state:', session.state)
+
+            // Verify downloaded file exists and check mtime
+            const downloadedFilePath = join(DOWNLOAD_DIR, DOWNLOAD_FILE_NAME)
+            if (existsSync(downloadedFilePath)) {
+              const dlStat = statSync(downloadedFilePath)
+              console.log('[TEST] Downloaded file size:', dlStat.size)
+              if (receivedMtime > 0) {
+                console.log('[TEST] Sender mtime (ms):', receivedMtime)
+                console.log('[TEST] Local mtime (ms):', dlStat.mtimeMs)
+              }
+            }
 
             // Calculate and display transfer speed
             displayTransferPerformance(downloadStartTime, downloadEndTime, totalBytesTransferred)
