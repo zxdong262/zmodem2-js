@@ -1,6 +1,6 @@
 {
   "name": "zmodem2",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "ZMODEM file transfer protocol library for JavaScript/TypeScript",
   "scripts": {
     "build": "node build/build-vite.mjs",

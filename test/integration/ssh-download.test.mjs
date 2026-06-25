@@ -13,6 +13,28 @@ import { ZmodemSession } from './zmodem-session.mjs'
 import { getSSHConfig, displayTransferPerformance } from './common.mjs'
 
 /**
+ * Wait for a shell command to finish and return its output.
+ * @param {import('ssh2').Channel} stream - SSH shell stream
+ * @param {string} cmd - Command to run
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Promise<string>} - Command output
+ */
+function runShellCommand (stream, cmd, timeout = 5000) {
+  return new Promise((resolve) => {
+    let output = ''
+    const onData = (data) => {
+      output += data.toString('utf8')
+    }
+    stream.on('data', onData)
+    stream.write(cmd + '\n')
+    setTimeout(() => {
+      stream.removeListener('data', onData)
+      resolve(output)
+    }, timeout)
+  })
+}
+
+/**
  * Start download session after ZRQINIT detection.
  * @param {ZmodemSession} session - Session in detected state
  * @param {Uint8Array} initialData - Initial ZMODEM data
@@ -167,6 +189,21 @@ async function runTest () {
         // Run download test
         async function runDownloadTest () {
           try {
+            // Get server file mtime before download for verification
+            console.log('\n=== Getting server file mtime ===')
+            const statOutput = await runShellCommand(stream, `stat -c '%Y' ${DOWNLOAD_FILE_NAME}`)
+            console.log('[SERVER] stat mtime output:', statOutput.trim())
+            const mtimeMatch = statOutput.match(/(\d{9,10})/)
+            const serverMtimeSec = mtimeMatch ? parseInt(mtimeMatch[1], 10) : 0
+            console.log('[TEST] Server file mtime (sec):', serverMtimeSec)
+
+            // Clean up local download if exists
+            const downloadedFilePath = join(DOWNLOAD_DIR, DOWNLOAD_FILE_NAME)
+            if (existsSync(downloadedFilePath)) {
+              const { unlinkSync } = await import('fs')
+              unlinkSync(downloadedFilePath)
+            }
+
             // Test: sz command (download)
             console.log('\n=== Test: sz command (download) ===')
             console.log('[TEST] Requesting file:', DOWNLOAD_FILE_NAME)
@@ -185,14 +222,31 @@ async function runTest () {
             console.log('[TEST] Download test complete, state:', session.state)
 
             // Verify downloaded file exists and check mtime
-            const downloadedFilePath = join(DOWNLOAD_DIR, DOWNLOAD_FILE_NAME)
             if (existsSync(downloadedFilePath)) {
               const dlStat = statSync(downloadedFilePath)
               console.log('[TEST] Downloaded file size:', dlStat.size)
-              if (receivedMtime > 0) {
+              console.log('[TEST] ✓ File downloaded successfully')
+
+              // Verify mtime
+              if (serverMtimeSec > 0) {
+                const localMtimeSec = Math.floor(dlStat.mtimeMs / 1000)
+                const diff = Math.abs(localMtimeSec - serverMtimeSec)
                 console.log('[TEST] Sender mtime (ms):', receivedMtime)
                 console.log('[TEST] Local mtime (ms):', dlStat.mtimeMs)
+                console.log('[TEST] Server mtime (sec):', serverMtimeSec)
+                console.log('[TEST] Local mtime (sec):', localMtimeSec)
+
+                if (diff <= 2) {
+                  console.log(`[TEST] ✓ mtime preserved (server: ${serverMtimeSec}, local: ${localMtimeSec}, diff: ${diff}s)`)
+                } else {
+                  console.error(`[TEST] ✗ mtime mismatch (server: ${serverMtimeSec}, local: ${localMtimeSec}, diff: ${diff}s)`)
+                  throw new Error(`mtime mismatch: server=${serverMtimeSec}, local=${localMtimeSec}, diff=${diff}s`)
+                }
+              } else {
+                console.warn('[TEST] ⚠ Could not get server mtime for verification')
               }
+            } else {
+              throw new Error(`Downloaded file not found: ${downloadedFilePath}`)
             }
 
             // Calculate and display transfer speed

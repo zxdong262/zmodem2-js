@@ -6,7 +6,7 @@
  */
 
 import { Client } from 'ssh2'
-import { readFileSync, writeFileSync, unlinkSync, existsSync, statSync } from 'fs'
+import { readFileSync, writeFileSync, unlinkSync, existsSync, statSync, openSync, futimesSync, closeSync } from 'fs'
 import { basename } from 'path'
 import { Sender } from '../../dist/esm/index.js'
 import { ZmodemSession } from './zmodem-session.mjs'
@@ -46,6 +46,8 @@ const SSH_CONFIG = getSSHConfig()
 
 const UPLOAD_FILE_PATH = '/Users/zxd/dev/zmodem2-js/test/testfile_5m.bin'
 const TEST_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+// Fixed mtime for reproducible verification (2023-11-14T22:13:20.000Z)
+const TEST_FILE_MTIME = 1700000000000
 
 let uploadStartTime = null
 let uploadEndTime = null
@@ -64,7 +66,34 @@ function generateTestFile (filePath, size) {
     buffer[i] = (i * 251) % 256
   }
   writeFileSync(filePath, buffer)
-  console.log('[TEST] Test file generated successfully')
+
+  // Set a known mtime on the file for verification
+  const fd = openSync(filePath, 'r+')
+  futimesSync(fd, new Date(TEST_FILE_MTIME), new Date(TEST_FILE_MTIME))
+  closeSync(fd)
+  console.log('[TEST] Test file generated successfully, mtime:', TEST_FILE_MTIME)
+}
+
+/**
+ * Wait for a shell command to finish and return its output.
+ * @param {import('ssh2').Channel} stream - SSH shell stream
+ * @param {string} cmd - Command to run
+ * @param {number} timeout - Timeout in milliseconds
+ * @returns {Promise<string>} - Command output
+ */
+function runShellCommand (stream, cmd, timeout = 5000) {
+  return new Promise((resolve) => {
+    let output = ''
+    const onData = (data) => {
+      output += data.toString('utf8')
+    }
+    stream.on('data', onData)
+    stream.write(cmd + '\n')
+    setTimeout(() => {
+      stream.removeListener('data', onData)
+      resolve(output)
+    }, timeout)
+  })
 }
 
 /**
@@ -234,6 +263,37 @@ async function runTest () {
 
             // Calculate and display transfer speed
             displayTransferPerformance(uploadStartTime, uploadEndTime, totalBytesTransferred)
+
+            // Verify uploaded file on server: check filename and mtime
+            console.log('\n=== Verifying uploaded file on server ===')
+            const lsOutput = await runShellCommand(stream, `ls -l ${uploadFileName}`)
+            console.log('[SERVER] ls output:', lsOutput.trim())
+
+            const existsOnServer = lsOutput.includes(uploadFileName) || !lsOutput.includes('No such file')
+            if (!existsOnServer) {
+              throw new Error(`Uploaded file not found on server: ${uploadFileName}`)
+            }
+            console.log('[TEST] ✓ File exists on server')
+
+            // Get mtime from server (epoch seconds)
+            const statOutput = await runShellCommand(stream, `stat -c '%Y' ${uploadFileName}`)
+            console.log('[SERVER] stat mtime output:', statOutput.trim())
+
+            // Extract mtime number from output (may contain terminal escape sequences)
+            const mtimeMatch = statOutput.match(/(\d{9,10})/)
+            const serverMtimeSec = mtimeMatch ? parseInt(mtimeMatch[1], 10) : NaN
+            const expectedMtimeSec = Math.floor(TEST_FILE_MTIME / 1000)
+            if (!isNaN(serverMtimeSec)) {
+              const diff = Math.abs(serverMtimeSec - expectedMtimeSec)
+              if (diff <= 2) {
+                console.log(`[TEST] ✓ mtime preserved (server: ${serverMtimeSec}, expected: ${expectedMtimeSec}, diff: ${diff}s)`)
+              } else {
+                console.error(`[TEST] ✗ mtime mismatch (server: ${serverMtimeSec}, expected: ${expectedMtimeSec}, diff: ${diff}s)`)
+                throw new Error(`mtime mismatch: server=${serverMtimeSec}, expected=${expectedMtimeSec}, diff=${diff}s`)
+              }
+            } else {
+              console.warn('[TEST] ⚠ Could not parse server mtime from stat output')
+            }
 
             testComplete = true
             stream.write('exit\n')

@@ -5,7 +5,7 @@
  * any duplex stream (SSH, serial, WebSocket, etc.).
  */
 
-import { writeFileSync, existsSync, mkdirSync } from 'fs'
+import { writeFileSync, existsSync, mkdirSync, openSync, futimesSync, closeSync } from 'fs'
 import { join, basename, extname } from 'path'
 import { Sender, Receiver, SenderEvent, ReceiverEvent } from '../../dist/esm/index.js'
 
@@ -56,6 +56,7 @@ export class ZmodemSession {
     this.sessionComplete = false // Flag to track session completion
     this.currentFileName = ''
     this.currentFileSize = 0
+    this.currentMtime = 0
     this.bytesTransferred = 0
     this.fileBuffer = null
     this.pendingData = []
@@ -444,6 +445,14 @@ export class ZmodemSession {
       try {
         writeFileSync(filePath, fileData)
         console.log('[ZMODEM] File saved:', filePath, 'size:', fileData.length)
+
+        // Set file modification time if available from ZMODEM protocol
+        if (this.currentMtime > 0) {
+          const fd = openSync(filePath, 'r+')
+          futimesSync(fd, new Date(this.currentMtime), new Date(this.currentMtime))
+          closeSync(fd)
+          console.log('[ZMODEM] File mtime set:', this.currentMtime)
+        }
       } catch (err) {
         console.error('[ZMODEM] Failed to save file:', err.message)
       }
@@ -459,6 +468,7 @@ export class ZmodemSession {
     this.state = 'idle'
     this.currentFileName = ''
     this.currentFileSize = 0
+    this.currentMtime = 0
     this.bytesTransferred = 0
     this.fileBuffer = null
     this.pendingData = []
