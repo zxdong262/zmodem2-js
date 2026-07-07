@@ -62,6 +62,7 @@ export class ZmodemSession {
     this.pendingData = []
     this.resolveSession = null
     this.rejectSession = null
+    this.fileQueue = [] // Queue of remaining files for multi-file sending
   }
 
   /**
@@ -119,6 +120,69 @@ export class ZmodemSession {
 
     if (initialData !== null) {
       this.feedIncoming(initialData)
+    }
+  }
+
+  /**
+   * Start a multi-file send session (rz command - we send multiple files to remote).
+   * @param {Array<{name: string, size: number, data: Uint8Array, mtime?: number}>} files - Array of file descriptors
+   */
+  startSendMultiple (files) {
+    if (this.state !== 'idle' && this.state !== 'detected') {
+      console.log('[ZMODEM] startSendMultiple called but state is not idle/detected:', this.state)
+      return
+    }
+
+    if (files.length === 0) {
+      console.log('[ZMODEM] startSendMultiple called with empty file list')
+      return
+    }
+
+    console.log('[ZMODEM] Starting multi-file send session with', files.length, 'files')
+    this.fileQueue = files.slice(1) // remaining files after the first
+    this.state = 'sending'
+
+    // Start with the first file
+    const firstFile = files[0]
+    this.currentFileName = firstFile.name
+    this.currentFileSize = firstFile.size
+    this.bytesTransferred = 0
+    this.fileBuffer = firstFile.data
+    this.currentMtime = firstFile.mtime || 0
+
+    // Create sender as non-initiator (false) since remote sent ZRINIT first
+    this.sender = new Sender(false)
+    this.sender.startFile(firstFile.name, firstFile.size, firstFile.mtime)
+
+    // Process pending data (ZRINIT) first
+    for (const data of this.pendingData) {
+      this.feedIncoming(data)
+    }
+    this.pendingData = []
+  }
+
+  /**
+   * Start sending the next file from the queue.
+   * Called internally after a file completes when there are more files to send.
+   * @param {{name: string, size: number, data: Uint8Array, mtime?: number}} file - File descriptor
+   */
+  startNextFile (file) {
+    console.log('[ZMODEM] Starting next file in queue:', file.name, 'size:', file.size)
+    this.currentFileName = file.name
+    this.currentFileSize = file.size
+    this.bytesTransferred = 0
+    this.fileBuffer = file.data
+    this.currentMtime = file.mtime || 0
+
+    // Sender state should be ReadyForFile after FileComplete event
+    this.sender.startFile(file.name, file.size, file.mtime)
+
+    // Drain outgoing (ZFILE header) immediately
+    const fileOutgoing = this.sender.drainOutgoing()
+    if (fileOutgoing.length > 0) {
+      console.log('[ZMODEM] Sender sending ZFILE for next file:', fileOutgoing.length, 'bytes')
+      this.stream.write(Buffer.from(fileOutgoing))
+      this.sender.advanceOutgoing(fileOutgoing.length)
     }
   }
 
@@ -355,15 +419,22 @@ export class ZmodemSession {
           if (this.options.onFileComplete !== null) {
             this.options.onFileComplete(this.currentFileName)
           }
-          // After file complete, finish the session to send ZEOF and complete handshake
-          console.log('[ZMODEM] Calling finishSession() to complete handshake')
-          this.sender.finishSession()
-          // Drain outgoing immediately after finishSession
-          const finishOutgoing = this.sender.drainOutgoing()
-          if (finishOutgoing.length > 0) {
-            console.log('[ZMODEM] Sender sending finish outgoing:', finishOutgoing.length, 'bytes')
-            this.stream.write(Buffer.from(finishOutgoing))
-            this.sender.advanceOutgoing(finishOutgoing.length)
+
+          // Check if there are more files to send in the queue
+          if (this.fileQueue.length > 0) {
+            const nextFile = this.fileQueue.shift()
+            this.startNextFile(nextFile)
+          } else {
+            // No more files, finish the session
+            console.log('[ZMODEM] No more files in queue, finishing session')
+            this.sender.finishSession()
+            // Drain outgoing immediately after finishSession
+            const finishOutgoing = this.sender.drainOutgoing()
+            if (finishOutgoing.length > 0) {
+              console.log('[ZMODEM] Sender sending finish outgoing:', finishOutgoing.length, 'bytes')
+              this.stream.write(Buffer.from(finishOutgoing))
+              this.sender.advanceOutgoing(finishOutgoing.length)
+            }
           }
           break
         }
@@ -472,6 +543,7 @@ export class ZmodemSession {
     this.bytesTransferred = 0
     this.fileBuffer = null
     this.pendingData = []
+    this.fileQueue = []
     // Note: sessionComplete flag is NOT reset here - it persists until explicitly reset
   }
 

@@ -11,6 +11,7 @@
     "test:upload": "node test/integration/ssh-upload.test.mjs",
     "test:download": "node test/integration/ssh-download.test.mjs",
     "test:c": "node test/integration/ssh-cn-filename.test.mjs",
+    "test:multi": "node test/integration/ssh-multi-file.test.mjs",
     "test:watch": "vitest",
     "lint": "ts-standard --project tsconfig.eslint.json src/**/*.ts src/**/*.tsx test/**/*.ts && standard build/*.mjs src/server/*.mjs benchmarks/*.mjs test/integration/*.mjs",
     "fix": "ts-standard --fix --project tsconfig.eslint.json src/**/*.ts src/**/*.tsx test/**/*.ts && standard --fix build/*.mjs src/server/*.mjs benchmarks/*.mjs test/integration/*.mjs",
