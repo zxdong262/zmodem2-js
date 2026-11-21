@@ -563,12 +563,12 @@ export class Sender {
     const caps = flags[3]
     const canOvio = (caps & Zrinit.CANOVIO) !== 0
 
-    // Always use the maximum subpacket size for efficiency
-    this.maxSubpacketSize = SUBPACKET_MAX_SIZE
-
-    // Use our optimized SUBPACKET_PER_ACK if receiver supports overlapped I/O
-    // Ignore rx_buf_size limitation as it's mainly for flow control, not throughput
-    this.maxSubpacketsPerAck = canOvio ? SUBPACKET_PER_ACK : 1
+    // A zero receive buffer permits streaming. Otherwise the whole frame
+    // must fit the advertised buffer before the sender waits for its ACK.
+    const bufferSize = flags[0] | (flags[1] << 8)
+    this.maxSubpacketSize = bufferSize === 0 ? SUBPACKET_MAX_SIZE : Math.min(bufferSize, SUBPACKET_MAX_SIZE)
+    const window = bufferSize === 0 ? SUBPACKET_PER_ACK : Math.floor(bufferSize / this.maxSubpacketSize)
+    this.maxSubpacketsPerAck = canOvio ? Math.min(window, SUBPACKET_PER_ACK) : 1
   }
 
   private onZrpos (offset: number): void {

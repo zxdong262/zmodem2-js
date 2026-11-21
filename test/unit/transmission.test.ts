@@ -85,6 +85,27 @@ describe('Sender', () => {
     expect(request?.len).toBeGreaterThan(0)
   })
 
+  it.each([
+    [128, 128, 1],
+    [17000, 8192, 2],
+    [0, 8192, 200]
+  ])('honors receive buffer %i across ACK boundaries', (size, packet, count) => {
+    const sender = new Sender(false)
+    sender.feedIncoming(createZrinit(size).encode())
+    sender.startFile('large.bin', 4000000)
+    sender.drainOutgoing()
+    sender.feedIncoming(new Header(Encoding.ZHEX, Frame.ZRPOS).withCount(0).encode())
+    for (let i = 0; i < count; i++) {
+      expect(sender.pollFile()).toEqual({ offset: i * packet, len: packet })
+      sender.feedFile(new Uint8Array(packet))
+      sender.drainOutgoing()
+    }
+    expect(sender.pollFile()).toBeNull()
+    const offset = count * packet
+    sender.feedIncoming(new Header(Encoding.ZHEX, Frame.ZACK).withCount(offset).encode())
+    expect(sender.pollFile()).toEqual({ offset, len: packet })
+  })
+
   it('should send file data', () => {
     const sender = new Sender()
 
