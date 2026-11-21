@@ -124,6 +124,7 @@ enum SendState {
  */
 enum RecvState {
   SessionBegin,
+  BetweenFiles,
   FileBegin,
   FileReadingMetadata,
   FileReadingSubpacket,
@@ -860,7 +861,7 @@ export class Receiver {
         }
         break
       case Frame.ZFILE:
-        if (this.state === RecvState.SessionBegin || this.state === RecvState.FileBegin) {
+        if (this.state === RecvState.SessionBegin || this.state === RecvState.BetweenFiles || this.state === RecvState.FileBegin) {
           this.dataEncoding = header.encoding
           this.state = RecvState.FileReadingMetadata
           this.subpacketState = SubpacketState.Reading
@@ -888,14 +889,14 @@ export class Receiver {
         }
         break
       case Frame.ZEOF:
-        if (this.state === RecvState.FileWaitingSubpacket && header.count === this.count) {
+        if ((this.state === RecvState.FileWaitingSubpacket || (this.state === RecvState.FileBegin && this.fileSize === 0)) && header.count === this.count) {
           this.queueZrinit()
-          this.state = RecvState.FileBegin
+          this.state = RecvState.BetweenFiles
           this.pushEvent(ReceiverEvent.FileComplete)
         }
         break
       case Frame.ZFIN:
-        if (this.state === RecvState.FileWaitingSubpacket || this.state === RecvState.FileBegin) {
+        if (this.state === RecvState.BetweenFiles || this.state === RecvState.FileWaitingSubpacket || this.state === RecvState.FileBegin) {
           this.queueZfin()
           this.state = RecvState.SessionEnd
           this.pushEvent(ReceiverEvent.SessionComplete)

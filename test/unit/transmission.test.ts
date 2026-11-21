@@ -138,6 +138,25 @@ describe('Sender', () => {
 })
 
 describe('Receiver', () => {
+  it('accepts ZEOF(0) exactly once for an offered empty file', () => {
+    const sender = new Sender()
+    const receiver = new Receiver()
+    sender.drainOutgoing()
+    sender.feedIncoming(receiver.drainOutgoing())
+    sender.startFile('empty', 0)
+    receiver.feedIncoming(sender.drainOutgoing())
+    expect(receiver.pollEvent()).toBe('FileStart')
+    receiver.drainOutgoing()
+    const eof = new Header(Encoding.ZHEX, Frame.ZEOF)
+    receiver.feedIncoming(eof.withCount(1).encode())
+    expect(receiver.pollEvent()).toBeNull()
+    receiver.feedIncoming(eof.withCount(0).encode())
+    expect(receiver.pollEvent()).toBe('FileComplete')
+    receiver.drainOutgoing()
+    receiver.feedIncoming(eof.withCount(0).encode())
+    expect(receiver.pollEvent()).toBeNull()
+  })
+
   it('should create receiver with ZRINIT queued', () => {
     const receiver = new Receiver()
     const outgoing = receiver.drainOutgoing()

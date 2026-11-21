@@ -1,0 +1,57 @@
+name: Test and publish to npm
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: node --test test/integration/empty-batch.test.mjs
+      - run: npm pack --pack-destination "$RUNNER_TEMP" && mv "$RUNNER_TEMP"/zmodem2-*.tgz "$RUNNER_TEMP/package.tgz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: ${{ runner.temp }}/package.tgz
+
+  publish:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: npm-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: package
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org/
+      - name: Publish new version with Trusted Publishing
+        run: |
+          version=$(tar -xOf package.tgz package/package.json | jq -r .version)
+          code=$(curl -sS -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/zmodem2/$version")
+          case "$code" in
+            200) echo "Version $version already published" ;;
+            404) npm publish ./package.tgz --access public --provenance ;;
+            *) echo "Registry returned HTTP $code" >&2; exit 1 ;;
+          esac
